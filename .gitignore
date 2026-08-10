@@ -1,0 +1,11 @@
+# Swift Package Manager build output
+.build/
+.build-cross/
+.swiftpm/
+Package.resolved
+
+# Packaging output: .app bundles and disk images
+build/
+
+# macOS
+.DS_Store
