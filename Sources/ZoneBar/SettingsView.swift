@@ -284,17 +284,24 @@ private struct AddClockView: View {
 
     @State private var query = ""
     @State private var selection: String?
+    @FocusState private var isSearchFocused: Bool
 
+    /// Recomputed once per body evaluation and reused by the list, the empty
+    /// state and `syncSelection()`; the search walks every known zone, so it is
+    /// not something to call several times over.
     private var matches: [String] {
         TimeZoneCatalog.search(query)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let matches = self.matches
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Add a Clock").font(.headline)
 
             TextField("Search city or country", text: $query)
                 .textFieldStyle(.roundedBorder)
+                .focused($isSearchFocused)
 
             List(selection: $selection) {
                 ForEach(matches, id: \.self) { identifier in
@@ -306,10 +313,18 @@ private struct AddClockView: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
-                    .tag(identifier)
-                    // Double-click is the fast path most people reach for.
+                    // A tap gesture anywhere on a row consumes the click before
+                    // AppKit's table can run its own selection, so selection is
+                    // driven explicitly here rather than left to the List.
+                    // Count 2 is declared first so a double-click resolves as
+                    // "add" instead of two selections.
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) { onAdd(identifier) }
+                    .onTapGesture(count: 1) { selection = identifier }
+                    // Outermost, matching the clock list above: the List reads
+                    // the tag off the row it is handed, so wrapping it in
+                    // further modifiers can hide it.
+                    .tag(identifier)
                 }
             }
             .frame(minHeight: 280)
@@ -332,5 +347,23 @@ private struct AddClockView: View {
         }
         .padding(20)
         .frame(width: 440, height: 460)
+        .onAppear {
+            isSearchFocused = true
+            syncSelection()
+        }
+        .onChange(of: query) { _, _ in syncSelection() }
+    }
+
+    /// Highlights the top hit *while filtering*, so typing a city and pressing
+    /// Return adds it. Deliberately does nothing when the field is empty:
+    /// pre-selecting the first of several hundred unfiltered zones means a
+    /// reflexive click on Add quietly adds the wrong clock.
+    private func syncSelection() {
+        guard !query.isEmpty else {
+            selection = nil
+            return
+        }
+        if let selection, matches.contains(selection) { return }
+        selection = matches.first
     }
 }

@@ -48,7 +48,10 @@ if [[ "${UNIVERSAL:-0}" == "1" ]]; then
     echo "Merged into a universal binary: $(lipo -archs "$BINARY")"
 fi
 
-echo "Assembling $APP…"
+# Braced on purpose: macOS ships bash 3.2, which folds the leading byte of a
+# following multibyte character (the "…") into the variable name, so a bare
+# "$APP…" aborts under `set -u` with `APP\xe2: unbound variable`.
+echo "Assembling ${APP}…"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/ZoneBar"

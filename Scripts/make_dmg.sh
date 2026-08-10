@@ -69,7 +69,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Creating $DMG…"
+# Braced for bash 3.2's sake — see the note in make_app.sh.
+echo "Creating ${DMG}…"
 rm -f "$DMG" "$TEMP_DMG"
 hdiutil create \
     -volname "$VOLUME_NAME" \
