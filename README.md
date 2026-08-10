@@ -28,6 +28,15 @@ To install it, pass a destination:
 Scripts/make_app.sh /Applications
 ```
 
+## Download
+
+[`ZoneBar-1.0.dmg`](ZoneBar-1.0.dmg) in the repository root is a prebuilt
+universal image (arm64 + x86_64, macOS 14+). See **Installing on another Mac**
+below for the Gatekeeper step needed on first launch.
+
+Rebuild it with `UNIVERSAL=1 Scripts/make_dmg.sh` and copy the result over this
+file to publish a new version.
+
 ## Building a DMG
 
 ```bash
