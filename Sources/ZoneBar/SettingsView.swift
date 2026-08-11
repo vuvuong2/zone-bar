@@ -178,7 +178,11 @@ struct SettingsView: View {
                         Text(option.title).tag(option)
                     }
                 }
-                .pickerStyle(.segmented)
+                // A popup, not a segmented control: this is set once and left
+                // alone, so it should not read as loud as Mode above it.
+                .pickerStyle(.menu)
+                // Without this the popup stretches the full window width.
+                .fixedSize()
                 // The strip is deliberately left out of this; say so, because
                 // the picker sits beside options that do reach it.
                 Text("Shown on each clock in the dropdown, not in the menu bar.")
