@@ -14,8 +14,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var timer: Timer?
     private var cancellables: Set<AnyCancellable> = []
 
-    /// Last title pushed to the button, so we skip redundant redraws.
-    private var renderedTitle: String?
+    /// Last title *and appearance* pushed to the button, so we skip redundant
+    /// redraws but still re-render when the menu bar flips light/dark.
+    private var renderedKey: String?
     /// True while the dropdown is open, when rows need live updates too.
     private var isMenuOpen = false
 
@@ -28,13 +29,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.delegate = self
         statusItem.menu = menu
-        statusItem.button?.imagePosition = .noImage
+        statusItem.button?.imagePosition = .imageOnly
 
         // Preference edits must show up immediately, not on the next tick.
         store.$preferences
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.renderedTitle = nil
+                self?.renderedKey = nil
                 self?.refresh()
             }
             .store(in: &cancellables)
@@ -63,9 +64,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let now = Date()
 
         let title = MenuBuilder.menuBarTitle(preferences: preferences, now: now)
-        if title != renderedTitle {
-            renderedTitle = title
-            applyTitle(title)
+        // The appearance joins the key so a light/dark flip repaints the strip
+        // even when the clocks read the same as they did a second ago.
+        let appearance = statusItem.button?.effectiveAppearance ?? NSApp.effectiveAppearance
+        let key = "\(appearance.name.rawValue)\u{1F}\(title)"
+        if key != renderedKey {
+            renderedKey = key
+            applyTitle(title, appearance: appearance)
         }
 
         if isMenuOpen {
@@ -73,14 +78,44 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
+    /// Draws the strip into an image rather than setting the button's title.
+    ///
+    /// macOS dims a status item's *text title* on the menu bar of whichever
+    /// display is not active, but leaves images at full strength — which is why
+    /// a plain title greys out over there while every neighbouring item stays
+    /// bright. Drawing the same string into an image sidesteps that.
+    ///
+    /// The image is deliberately *not* a template: a template is only a mask, so
+    /// it would flatten the flag emoji into grey silhouettes. That means the
+    /// system will not tint the text either, so the colour is resolved from the
+    /// button's own appearance, which reports the menu bar's true light/dark
+    /// state on each display.
+    ///
     /// Monospaced digits stop the strip from jittering as the numbers change.
-    private func applyTitle(_ title: String) {
+    private func applyTitle(_ title: String, appearance: NSAppearance) {
         guard let button = statusItem.button else { return }
+
         let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        button.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [.font: font]
-        )
+        let measured = NSAttributedString(string: title, attributes: [.font: font])
+        let textSize = measured.size()
+        let size = NSSize(width: ceil(textSize.width), height: NSStatusBar.system.thickness)
+
+        let image = NSImage(size: size, flipped: false) { rect in
+            // Resolving labelColor inside the appearance keeps the strip white on
+            // a dark menu bar and black on a light one.
+            appearance.performAsCurrentDrawingAppearance {
+                let drawn = NSAttributedString(
+                    string: title,
+                    attributes: [.font: font, .foregroundColor: NSColor.labelColor])
+                drawn.draw(at: NSPoint(x: 0, y: (rect.height - textSize.height) / 2))
+            }
+            return true
+        }
+        image.isTemplate = false
+        // The button carries no title now, so VoiceOver reads this instead.
+        image.accessibilityDescription = title
+
+        button.image = image
     }
 
     // MARK: - Menu
@@ -155,7 +190,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let title = NSMutableAttributedString(
             string: "\(row.flag)  \(row.label)",
             attributes: [
-                .font: NSFont.menuFont(ofSize: 0)
+                .font: NSFont.menuFont(ofSize: 0),
+                // Without this the line paints black instead of following the
+                // menu appearance and the row highlight.
+                .foregroundColor: NSColor.labelColor,
             ])
 
         var detail = "\(row.time)"
