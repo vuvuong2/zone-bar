@@ -13,6 +13,17 @@ A single **Display mode** switch drives the whole app:
 Region sections are derived from the IANA zone name and ordered Americas →
 Europe → Africa → Asia → Oceania → Other.
 
+## Example
+
+Flat mode with two clocks — Stockholm and Sydney — sitting in the menu bar
+between the other status items:
+
+![ZoneBar in the menu bar showing 🇸🇪 05:09 and 🇦🇺 13:09](Docs/menu-bar-flat.png)
+
+Each entry is the zone's country flag followed by its current time. Switching to
+Grouped mode leaves only the primary clock here and moves the rest into the
+dropdown, sectioned by region.
+
 ## Build and run
 
 Needs Swift 5.9+. Xcode is **not** required — the Command Line Tools are enough.
@@ -120,6 +131,7 @@ Sources/ZoneBar/         app shell: NSStatusItem, SwiftUI settings window
 Tests/ZoneBarTests/      test runner executable
 Resources/AppIcon.icns   app and disk-image icon
 Scripts/                 tz table generator, .app and .dmg packaging
+Docs/                    README screenshots
 ```
 
 Replacing the icon is a matter of dropping a new `Resources/AppIcon.icns` in
