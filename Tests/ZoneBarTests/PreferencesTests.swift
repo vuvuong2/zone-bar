@@ -12,7 +12,8 @@ let preferencesTests: [TestCase] = [
             use24Hour: false,
             showSeconds: true,
             showDayOffset: false,
-            showFlagsInMenuBar: false
+            showFlagsInMenuBar: false,
+            offsetDisplay: .relative
         )
 
         do {
@@ -40,6 +41,7 @@ let preferencesTests: [TestCase] = [
             expectFalse(decoded.showSeconds)
             expectTrue(decoded.showDayOffset)
             expectTrue(decoded.showFlagsInMenuBar)
+            expectEqual(decoded.offsetDisplay, .none)
             expectNil(decoded.primaryClockID)
         } catch {
             fail("decoding threw: \(error)")

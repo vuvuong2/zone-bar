@@ -58,6 +58,28 @@ public enum ClockFormatter {
         return days > 0 ? "+\(days)d" : "\(days)d"
     }
 
+    /// Clock-time difference between two zones at a given instant, e.g. "+8h",
+    /// "+5h30", "-6h". Empty when both zones are on the same offset.
+    ///
+    /// Takes the instant rather than reading each zone's current offset because
+    /// the answer moves with DST: New York is 6h behind Stockholm for most of
+    /// the year and 5h behind in the weeks the two zones change over.
+    public static func relativeOffsetDescription(
+        _ date: Date, zone: TimeZone, relativeTo baseline: TimeZone
+    ) -> String {
+        let seconds = zone.secondsFromGMT(for: date) - baseline.secondsFromGMT(for: date)
+        guard seconds != 0 else { return "" }
+
+        let sign = seconds < 0 ? "-" : "+"
+        // Sub-minute offsets exist only in pre-standardisation history, well
+        // outside anything this app renders, so truncating them is safe.
+        let magnitude = abs(seconds)
+        let hours = magnitude / 3600
+        let minutes = (magnitude % 3600) / 60
+        let fraction = minutes == 0 ? "" : String(format: "%02d", minutes)
+        return "\(sign)\(hours)h\(fraction)"
+    }
+
     /// Positive when `zone` is on a later calendar day than `baseline`.
     public static func calendarDayDifference(
         _ date: Date, zone: TimeZone, relativeTo baseline: TimeZone

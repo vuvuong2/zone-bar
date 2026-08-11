@@ -80,6 +80,56 @@ let clockFormatterTests: [TestCase] = [
             ClockFormatter.dayOffsetDescription(lateUTC, zone: newYork, relativeTo: tokyo), "-1d")
     },
 
+    // MARK: Offset from a baseline zone
+
+    TestCase(name: "relative offset in whole hours") {
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(
+                reference, zone: tokyo, relativeTo: stockholm), "+8h")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(
+                reference, zone: newYork, relativeTo: stockholm), "-6h")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(reference, zone: tokyo, relativeTo: utc), "+9h")
+    },
+
+    TestCase(name: "relative offset in fractional zones") {
+        let kolkata = TimeZone(identifier: "Asia/Kolkata")!
+        let kathmandu = TimeZone(identifier: "Asia/Kathmandu")!
+        let marquesas = TimeZone(identifier: "Pacific/Marquesas")!  // UTC-09:30
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(reference, zone: kolkata, relativeTo: utc),
+            "+5h30")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(reference, zone: kathmandu, relativeTo: utc),
+            "+5h45")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(reference, zone: marquesas, relativeTo: utc),
+            "-9h30")
+    },
+
+    TestCase(name: "relative offset is empty for zones on the same offset") {
+        let paris = TimeZone(identifier: "Europe/Paris")!
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(reference, zone: stockholm, relativeTo: paris),
+            "")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(
+                reference, zone: stockholm, relativeTo: stockholm), "")
+    },
+
+    TestCase(name: "relative offset follows DST") {
+        // Stockholm and New York are 6h apart in January, but only 5h in the
+        // last week of March: the US has sprung forward and Europe has not.
+        let march = Date(timeIntervalSince1970: 1_711_450_000)  // 2024-03-26 11:26 UTC
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(
+                reference, zone: newYork, relativeTo: stockholm), "-6h")
+        expectEqual(
+            ClockFormatter.relativeOffsetDescription(march, zone: newYork, relativeTo: stockholm),
+            "-5h")
+    },
+
     TestCase(name: "day offset across month boundary") {
         // 2024-01-31 23:30 UTC -> Tokyo is 2024-02-01.
         let endOfMonth = Date(timeIntervalSince1970: 1_706_743_800)

@@ -15,14 +15,18 @@ public enum MenuRow: Equatable {
         public let time: String
         /// "+1d", "-1d" or "" when the day matches the primary clock.
         public let dayOffset: String
-        /// e.g. "UTC+02:00"
+        /// e.g. "UTC+02:00". Always populated — the row's tooltip shows it
+        /// whatever `offsetDetail` ends up being.
         public let utcOffset: String
+        /// Offset text the user asked for, per `Preferences.offsetDisplay`:
+        /// the UTC offset, the distance from the machine's zone, or "".
+        public let offsetDetail: String
         /// True for the clock shown in the menu bar in grouped mode.
         public let isPrimary: Bool
 
         public init(
             clockID: UUID, flag: String, label: String, time: String, dayOffset: String,
-            utcOffset: String, isPrimary: Bool
+            utcOffset: String, offsetDetail: String, isPrimary: Bool
         ) {
             self.clockID = clockID
             self.flag = flag
@@ -30,6 +34,7 @@ public enum MenuRow: Equatable {
             self.time = time
             self.dayOffset = dayOffset
             self.utcOffset = utcOffset
+            self.offsetDetail = offsetDetail
             self.isPrimary = isPrimary
         }
 
@@ -38,6 +43,7 @@ public enum MenuRow: Equatable {
             var parts = ["\(flag)  \(label)"]
             parts.append(time)
             if !dayOffset.isEmpty { parts.append("(\(dayOffset))") }
+            if !offsetDetail.isEmpty { parts.append(offsetDetail) }
             return parts.joined(separator: "   ")
         }
     }
@@ -75,10 +81,15 @@ public enum MenuBuilder {
     }
 
     /// Rows for the dropdown, flat or grouped by region per the display mode.
-    public static func menuRows(preferences: Preferences, now: Date) -> [MenuRow] {
+    ///
+    /// `localTimeZone` is the machine's own zone, injected so this stays pure
+    /// and the tests do not depend on where they are run.
+    public static func menuRows(
+        preferences: Preferences, now: Date, localTimeZone: TimeZone = .current
+    ) -> [MenuRow] {
         guard !preferences.clocks.isEmpty else { return [] }
 
-        let baseline = preferences.primaryClock?.timeZone ?? TimeZone.current
+        let baseline = preferences.primaryClock?.timeZone ?? localTimeZone
         let primaryID = preferences.primaryClock?.id
 
         func row(for clock: Clock) -> MenuRow {
@@ -90,6 +101,19 @@ public enum MenuBuilder {
                 ? ClockFormatter.dayOffsetDescription(
                     now, zone: clock.timeZone, relativeTo: baseline)
                 : ""
+            let utcOffset = TimeZoneCatalog.utcOffsetDescription(for: clock.timeZone, at: now)
+            let offsetDetail: String
+            switch preferences.offsetDisplay {
+            case .none:
+                offsetDetail = ""
+            case .utc:
+                offsetDetail = utcOffset
+            case .relative:
+                // Against the machine's zone, not `baseline`: this answers "how
+                // far is this from me", which the primary clock cannot.
+                offsetDetail = ClockFormatter.relativeOffsetDescription(
+                    now, zone: clock.timeZone, relativeTo: localTimeZone)
+            }
             return .clock(
                 MenuRow.ClockRow(
                     clockID: clock.id,
@@ -97,7 +121,8 @@ public enum MenuBuilder {
                     label: clock.label,
                     time: time,
                     dayOffset: dayOffset,
-                    utcOffset: TimeZoneCatalog.utcOffsetDescription(for: clock.timeZone, at: now),
+                    utcOffset: utcOffset,
+                    offsetDetail: offsetDetail,
                     isPrimary: clock.id == primaryID
                 ))
         }
