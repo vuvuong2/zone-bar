@@ -12,6 +12,8 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var showDayOffset: Bool
     /// Show flags in the menu-bar strip. Flags always show in the dropdown.
     public var showFlagsInMenuBar: Bool
+    /// Offset text on each dropdown clock. Never reaches the menu-bar strip.
+    public var offsetDisplay: OffsetDisplay
 
     public init(
         clocks: [Clock] = [],
@@ -20,7 +22,8 @@ public struct Preferences: Codable, Equatable, Sendable {
         use24Hour: Bool = true,
         showSeconds: Bool = false,
         showDayOffset: Bool = true,
-        showFlagsInMenuBar: Bool = true
+        showFlagsInMenuBar: Bool = true,
+        offsetDisplay: OffsetDisplay = .none
     ) {
         self.clocks = clocks
         self.displayMode = displayMode
@@ -29,6 +32,7 @@ public struct Preferences: Codable, Equatable, Sendable {
         self.showSeconds = showSeconds
         self.showDayOffset = showDayOffset
         self.showFlagsInMenuBar = showFlagsInMenuBar
+        self.offsetDisplay = offsetDisplay
     }
 
     /// First-run state: a single clock for the machine's own time zone.
@@ -67,5 +71,8 @@ public struct Preferences: Codable, Equatable, Sendable {
         showFlagsInMenuBar =
             try container.decodeIfPresent(Bool.self, forKey: .showFlagsInMenuBar)
             ?? defaults.showFlagsInMenuBar
+        offsetDisplay =
+            try container.decodeIfPresent(OffsetDisplay.self, forKey: .offsetDisplay)
+            ?? defaults.offsetDisplay
     }
 }

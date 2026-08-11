@@ -28,7 +28,9 @@ struct SettingsView: View {
             displayOptions
         }
         .padding(20)
-        .frame(width: 480, height: 620)
+        // Height covers the fixed rows plus the clock list's 200pt minimum;
+        // the Offset picker below added a row, so it grew to match.
+        .frame(width: 480, height: 664)
         .sheet(isPresented: $isAddingClock) {
             AddClockView { identifier in
                 store.addClock(tzIdentifier: identifier)
@@ -151,7 +153,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Display").font(.headline)
 
-            Picker("Mode", selection: displayModeBinding) {
+            Picker("Mode", selection: binding(\.displayMode)) {
                 ForEach(DisplayMode.allCases, id: \.self) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -170,6 +172,20 @@ struct SettingsView: View {
             }
             .toggleStyle(.checkbox)
 
+            VStack(alignment: .leading, spacing: 4) {
+                Picker("Offset", selection: binding(\.offsetDisplay)) {
+                    ForEach(OffsetDisplay.allCases, id: \.self) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                // The strip is deliberately left out of this; say so, because
+                // the picker sits beside options that do reach it.
+                Text("Shown on each clock in the dropdown, not in the menu bar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             HStack {
                 Spacer()
                 Button("Reset to Defaults") {
@@ -180,14 +196,7 @@ struct SettingsView: View {
         }
     }
 
-    private var displayModeBinding: Binding<DisplayMode> {
-        Binding(
-            get: { store.preferences.displayMode },
-            set: { store.preferences.displayMode = $0 }
-        )
-    }
-
-    private func binding(_ keyPath: WritableKeyPath<Preferences, Bool>) -> Binding<Bool> {
+    private func binding<Value>(_ keyPath: WritableKeyPath<Preferences, Value>) -> Binding<Value> {
         Binding(
             get: { store.preferences[keyPath: keyPath] },
             set: { store.preferences[keyPath: keyPath] = $0 }

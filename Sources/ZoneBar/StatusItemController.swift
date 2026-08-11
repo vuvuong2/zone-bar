@@ -160,6 +160,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         var detail = "\(row.time)"
         if !row.dayOffset.isEmpty { detail += "  \(row.dayOffset)" }
+        if !row.offsetDetail.isEmpty { detail += "  \(row.offsetDetail)" }
         detail += "  ·  \(ClockFormatter.dayAndDate(now, in: zone))"
 
         title.append(

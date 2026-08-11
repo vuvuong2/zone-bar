@@ -8,6 +8,10 @@ private let stockholm = Clock(tzIdentifier: "Europe/Stockholm")
 private let tokyo = Clock(tzIdentifier: "Asia/Tokyo")
 private let newYork = Clock(tzIdentifier: "America/New_York")
 
+/// Stands in for the machine's own zone, so the offset expectations below do
+/// not depend on where the suite is run. UTC+00:00 at the instant above.
+private let london = TimeZone(identifier: "Europe/London")!
+
 private func clockRows(_ rows: [MenuRow]) -> [MenuRow.ClockRow] {
     rows.compactMap { if case .clock(let row) = $0 { return row } else { return nil } }
 }
@@ -87,8 +91,9 @@ let menuBuilderTests: [TestCase] = [
         expectEqual(row.flag, "🇸🇪")
         expectEqual(row.label, "Stockholm")
         expectEqual(row.time, "13:00")
-        expectEqual(row.utcOffset, "UTC+01:00")
+        expectEqual(row.utcOffset, "UTC+01:00", "always populated for the tooltip")
         expectEqual(row.dayOffset, "")
+        expectEqual(row.offsetDetail, "", "no offset text by default")
         expectTrue(row.isPrimary)
     },
 
@@ -186,18 +191,72 @@ let menuBuilderTests: [TestCase] = [
         expectEqual(rows.first(where: \.isPrimary)?.label, "Tokyo")
     },
 
+    // MARK: Offset display
+
+    TestCase(name: "offset display none leaves the rows bare") {
+        let preferences = Preferences(
+            clocks: [stockholm, tokyo], displayMode: .flat, primaryClockID: stockholm.id,
+            offsetDisplay: .none)
+        let rows = clockRows(
+            MenuBuilder.menuRows(preferences: preferences, now: now, localTimeZone: london))
+        expectTrue(rows.allSatisfy { $0.offsetDetail.isEmpty })
+        expectEqual(
+            rows.map(\.utcOffset), ["UTC+01:00", "UTC+09:00"],
+            "the tooltip's offset survives the none mode")
+    },
+
+    TestCase(name: "offset display utc mirrors the zone's own offset") {
+        let preferences = Preferences(
+            clocks: [stockholm, tokyo, newYork], displayMode: .flat, primaryClockID: stockholm.id,
+            offsetDisplay: .utc)
+        let rows = clockRows(
+            MenuBuilder.menuRows(preferences: preferences, now: now, localTimeZone: london))
+        expectEqual(rows.map(\.offsetDetail), ["UTC+01:00", "UTC+09:00", "UTC-05:00"])
+    },
+
+    TestCase(name: "offset display relative measures from the machine's zone") {
+        // London is UTC+00:00 in January, so the distances are the zones' own
+        // offsets — and the clock in the machine's own zone shows nothing.
+        let londonClock = Clock(tzIdentifier: "Europe/London")
+        let kolkata = Clock(tzIdentifier: "Asia/Kolkata")
+        let preferences = Preferences(
+            clocks: [stockholm, tokyo, newYork, kolkata, londonClock], displayMode: .flat,
+            primaryClockID: stockholm.id, offsetDisplay: .relative)
+        let rows = clockRows(
+            MenuBuilder.menuRows(preferences: preferences, now: now, localTimeZone: london))
+        expectEqual(rows.map(\.offsetDetail), ["+1h", "+9h", "-5h", "+5h30", ""])
+    },
+
+    TestCase(name: "relative offset ignores the primary clock") {
+        // Tokyo is primary, but the offsets are still measured from London:
+        // this answers "how far from me", which the primary cannot.
+        let preferences = Preferences(
+            clocks: [stockholm, tokyo], displayMode: .flat, primaryClockID: tokyo.id,
+            offsetDisplay: .relative)
+        let rows = clockRows(
+            MenuBuilder.menuRows(preferences: preferences, now: now, localTimeZone: london))
+        expectEqual(rows.map(\.offsetDetail), ["+1h", "+9h"])
+    },
+
     // MARK: Row rendering
 
     TestCase(name: "display title includes the day offset only when present") {
         let plain = MenuRow.ClockRow(
             clockID: UUID(), flag: "🇸🇪", label: "Stockholm", time: "13:00", dayOffset: "",
-            utcOffset: "UTC+01:00", isPrimary: true)
+            utcOffset: "UTC+01:00", offsetDetail: "", isPrimary: true)
         expectEqual(plain.displayTitle, "🇸🇪  Stockholm   13:00")
 
         let shifted = MenuRow.ClockRow(
             clockID: UUID(), flag: "🇯🇵", label: "Tokyo", time: "07:00", dayOffset: "+1d",
-            utcOffset: "UTC+09:00", isPrimary: false)
+            utcOffset: "UTC+09:00", offsetDetail: "", isPrimary: false)
         expectEqual(shifted.displayTitle, "🇯🇵  Tokyo   07:00   (+1d)")
+    },
+
+    TestCase(name: "display title carries the offset text when asked for") {
+        let row = MenuRow.ClockRow(
+            clockID: UUID(), flag: "🇯🇵", label: "Tokyo", time: "07:00", dayOffset: "+1d",
+            utcOffset: "UTC+09:00", offsetDetail: "+8h", isPrimary: false)
+        expectEqual(row.displayTitle, "🇯🇵  Tokyo   07:00   (+1d)   +8h")
     },
 
     TestCase(name: "custom labels flow through to rows") {

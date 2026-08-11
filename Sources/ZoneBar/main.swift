@@ -17,6 +17,7 @@ private func printStateAndExit() -> Never {
     let now = Date()
 
     print("display mode: \(preferences.displayMode.rawValue)")
+    print("offset:       \(preferences.offsetDisplay.rawValue)")
     print("menu bar:     \(MenuBuilder.menuBarTitle(preferences: preferences, now: now))")
     print("dropdown:")
     for row in MenuBuilder.menuRows(preferences: preferences, now: now) {
